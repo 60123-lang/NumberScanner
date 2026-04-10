@@ -1,6 +1,11 @@
 import os
 from pathlib import Path
 
+from django.contrib.auth.models import update_last_login
+from django.contrib.auth.signals import user_logged_in
+
+user_logged_in.disconnect(update_last_login)
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-ph*pf)z*w3rt^7ii5*e%rq)$bs(zd0l&_3(50fnt94*i8l2k3&')

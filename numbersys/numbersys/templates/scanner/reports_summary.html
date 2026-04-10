@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}All Sheets Summary{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">All Sheets Summary</h4>
+    <div class="text-muted small">Only Verified / Finalized documents are counted.</div>
+  </div>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'dashboard' %}">Back</a>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card card-soft p-3"><div class="text-muted small">Grand Total</div><div class="fw-bold">{{ total_grand }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-soft p-3"><div class="text-muted small">Commission</div><div class="fw-bold">{{ total_commission }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-soft p-3"><div class="text-muted small">Total Prize</div><div class="fw-bold">{{ total_prize }}</div></div></div>
+  <div class="col-6 col-lg-3"><div class="card card-soft p-3"><div class="text-muted small">Net Bill</div><div class="fw-bold">{{ total_net }}</div></div></div>
+</div>
+
+<div class="card card-soft p-3">
+  {% if docs %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Status</th>
+            <th>Grand</th>
+            <th>Commission</th>
+            <th>Prize</th>
+            <th>Net</th>
+            <th class="text-end"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in docs %}
+            <tr>
+              <td>#{{ d.id }}</td>
+              <td><span class="badge text-bg-secondary">{{ d.get_status_display }}</span></td>
+              <td>{{ d.grand_total }}</td>
+              <td>{{ d.commission_amount }}</td>
+              <td>{{ d.total_prize }}</td>
+              <td class="fw-bold">{{ d.net_bill }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'document_detail' d.id %}">Open</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-muted">No verified/finalized documents yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

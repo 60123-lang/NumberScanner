@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-7">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0">{{ title }}</h4>
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'staff_users' %}">Back</a>
+    </div>
+
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="card card-soft p-4">
+      <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label">Username</label>
+          {{ form.username }}
+          {% if form.username.errors %}<div class="text-danger small">{{ form.username.errors }}</div>{% endif %}
+        </div>
+
+        {% if mode == "create" %}
+          <div class="row g-2">
+            <div class="col-12 col-md-6 mb-3">
+              <label class="form-label">Password</label>
+              {{ form.password1 }}
+              {% if form.password1.errors %}<div class="text-danger small">{{ form.password1.errors }}</div>{% endif %}
+            </div>
+            <div class="col-12 col-md-6 mb-3">
+              <label class="form-label">Confirm Password</label>
+              {{ form.password2 }}
+              {% if form.password2.errors %}<div class="text-danger small">{{ form.password2.errors }}</div>{% endif %}
+            </div>
+          </div>
+        {% else %}
+          <div class="row g-2">
+            <div class="col-12 col-md-6 mb-3">
+              <label class="form-label">New Password (optional)</label>
+              {{ form.new_password1 }}
+            </div>
+            <div class="col-12 col-md-6 mb-3">
+              <label class="form-label">Confirm New Password</label>
+              {{ form.new_password2 }}
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="row g-2">
+          <div class="col-12 col-md-6 mb-3">
+            <label class="form-label">Scan Credits Total</label>
+            {{ form.scan_credits_total }}
+            {% if form.scan_credits_total.errors %}<div class="text-danger small">{{ form.scan_credits_total.errors }}</div>{% endif %}
+          </div>
+
+          {% if mode == "edit" %}
+          <div class="col-12 col-md-6 mb-3">
+            <label class="form-label">Scan Credits Used</label>
+            {{ form.scan_credits_used }}
+            {% if form.scan_credits_used.errors %}<div class="text-danger small">{{ form.scan_credits_used.errors }}</div>{% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="form-check mb-3">
+          {{ form.is_active }}
+          <label class="form-check-label">Active</label>
+        </div>
+
+        <button class="btn btn-primary w-100">
+          {% if mode == "create" %}Create User{% else %}Save Changes{% endif %}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Add bootstrap classes to default Django form fields
+  document.querySelectorAll("input").forEach(el => {
+    if (el.type !== "checkbox" && el.type !== "hidden") el.classList.add("form-control");
+    if (el.type === "checkbox") el.classList.add("form-check-input");
+  });
+</script>
+{% endblock %}

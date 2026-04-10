@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+{% if messages %}
+  {% for m in messages %}
+    <div class="alert alert-{{ m.tags }}">{{ m }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-12 col-lg-4">
+    <div class="card card-soft p-4">
+      <div class="text-muted small">Scan credits remaining</div>
+      <div class="fs-3 fw-bold">{{ profile.scan_credits_remaining }}</div>
+      <div class="small text-muted">Total: {{ profile.scan_credits_total }} | Used: {{ profile.scan_credits_used }}</div>
+      <hr>
+
+      <a class="btn btn-primary w-100" href="{% url 'document_upload' %}">Upload Document</a>
+
+      <a class="btn btn-outline-secondary w-100 mt-2" href="{% url 'reports_summary' %}">
+        All Sheets Summary
+      </a>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-8">
+    <div class="card card-soft p-4">
+      <h5 class="mb-3">Recent Documents</h5>
+
+      {% if documents %}
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Status</th>
+                <th>Uploaded</th>
+                <th class="text-end"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in documents %}
+                <tr>
+                  <td>#{{ d.id }}</td>
+                  <td>
+                    <span class="badge text-bg-secondary">{{ d.get_status_display }}</span>
+                  </td>
+                  <td class="text-muted small">{{ d.created_at }}</td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'document_detail' d.id %}">Open</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-muted">No documents uploaded yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

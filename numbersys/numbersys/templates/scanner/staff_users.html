@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">Admin Dashboard</h4>
+    <div class="text-muted small">Create users, assign scan credits, update passwords.</div>
+  </div>
+  <a class="btn btn-primary" href="{% url 'staff_user_create' %}">+ Create User</a>
+</div>
+
+{% if messages %}
+  {% for m in messages %}
+    <div class="alert alert-{{ m.tags }}">{{ m }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="card card-soft p-3">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Total</th>
+          <th>Used</th>
+          <th>Remaining</th>
+          <th>Status</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+          <tr>
+            <td class="fw-semibold">{{ u.username }}</td>
+            <td>{{ u.profile.scan_credits_total }}</td>
+            <td>{{ u.profile.scan_credits_used }}</td>
+            <td class="fw-bold">{{ u.profile.scan_credits_remaining }}</td>
+            <td>
+              {% if u.is_active %}
+                <span class="badge text-bg-success">Active</span>
+              {% else %}
+                <span class="badge text-bg-danger">Disabled</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary"
+                 href="{% url 'staff_user_edit' u.id %}">Edit</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -25,7 +25,12 @@ SECRET_KEY = 'django-insecure-ph*pf)z*w3rt^7ii5*e%rq)$bs(zd0l&_3(50fnt94*i8l2k3&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '.vercel.app',  # The dot at the start allows all Vercel subdomains
+    'number-scanner-dcpo-hew980j9p-khizerhayyats-projects.vercel.app',
+]
 
 # ✅ LLM API Configuration
 QWEN_API_KEY = "sk-e8421e46beb642478a1b805e3bc7643e"

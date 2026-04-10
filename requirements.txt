@@ -15,3 +15,4 @@ sqlparse==0.5.5
 tabulate==0.10.0
 tzdata==2025.3
 urllib3==2.6.3
+pandas-stubs==1.0.0

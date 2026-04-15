@@ -340,7 +340,7 @@ def document_start_extraction(request, doc_id: int):
         # ✅ Call the LLM extractor
         image_path = doc.file.path
         api_key = settings.QWEN_API_KEY
-        extracted_data = extract_data_with_qwen(image_path, api_key)
+        extracted_data, extraction_error = extract_data_with_qwen(image_path, api_key)
 
         # Create rows (only if not already created)
         if not doc.rows.exists():
@@ -386,9 +386,9 @@ def document_start_extraction(request, doc_id: int):
             messages.success(request, "Extraction successful! Review the data below.")
         else:
             doc.status = Document.Status.FAILED
-            doc.error_message = "Extractor could not parse a valid table from the model response."
+            doc.error_message = extraction_error or "Extractor could not parse a valid table from the model response."
             doc.save(update_fields=["status", "error_message"])
-            messages.error(request, "Extraction failed. Please try again.")
+            messages.error(request, doc.error_message)
 
     # Validate to compute initial issues
     validate_document_rows(doc)

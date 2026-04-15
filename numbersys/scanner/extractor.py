@@ -6,6 +6,9 @@ import os
 from datetime import datetime
 
 
+EXPECTED_KEYS = {"S", "N1", "F1", "S1", "D1", "N2", "F2", "S2", "D2", "N3", "F3", "S3"}
+
+
 def _normalize_header_key(raw_key):
     key = str(raw_key or "").strip().lower()
     key = key.replace(" ", "")
@@ -58,6 +61,74 @@ def _clean_cell_value(raw):
 
     # Keep non-numeric text untouched so downstream cleaning can decide.
     return v
+
+
+def _normalize_row(row):
+    if not isinstance(row, dict):
+        return None
+
+    normalized = {}
+    for key, value in row.items():
+        norm_key = _normalize_header_key(key)
+        if norm_key in EXPECTED_KEYS:
+            normalized[norm_key] = _clean_cell_value(value)
+
+    return normalized if normalized else None
+
+
+def _rows_from_container(parsed):
+    if isinstance(parsed, list):
+        rows = []
+        for item in parsed:
+            norm = _normalize_row(item)
+            if norm:
+                rows.append(norm)
+        return rows or None
+
+    if isinstance(parsed, dict):
+        for key in ("rows", "data", "table", "result", "records", "items"):
+            candidate = parsed.get(key)
+            if isinstance(candidate, list):
+                rows = _rows_from_container(candidate)
+                if rows:
+                    return rows
+    return None
+
+
+def _extract_loose_rows(output):
+    # Fallback for quasi-JSON objects that are not valid JSON.
+    text = str(output)
+    object_chunks = re.findall(r"\{[^{}]+\}", text, re.DOTALL)
+    if not object_chunks:
+        return None
+
+    rows = []
+    for chunk in object_chunks:
+        pairs = re.findall(
+            r"[\"']?([A-Za-z][A-Za-z0-9_\.\s]*)[\"']?\s*:\s*(\"[^\"]*\"|'[^']*'|[^,}]+)",
+            chunk,
+        )
+        if not pairs:
+            continue
+
+        obj = {}
+        for k, v in pairs:
+            key = str(k).strip()
+            val = str(v).strip().rstrip(",")
+            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                val = val[1:-1]
+
+            low = val.lower()
+            if low in {"null", "none", "nil"}:
+                obj[key] = None
+            else:
+                obj[key] = val
+
+        norm = _normalize_row(obj)
+        if norm:
+            rows.append(norm)
+
+    return rows or None
 
 
 def _parse_markdown_table(output):
@@ -130,28 +201,31 @@ def _extract_data_rows(output):
     # 1) Direct JSON payload
     try:
         parsed = json.loads(output)
-        if isinstance(parsed, list):
-            return parsed
+        rows = _rows_from_container(parsed)
+        if rows:
+            return rows
     except Exception:
         pass
 
     # 2) JSON inside markdown code fence
-    fence_match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", output, re.DOTALL | re.IGNORECASE)
-    if fence_match:
+    fence_match = re.search(r"```(?:json)?\s*(.*?)\s*```", output, re.DOTALL | re.IGNORECASE)
+    if fence_match and fence_match.group(1):
         try:
             parsed = json.loads(fence_match.group(1))
-            if isinstance(parsed, list):
-                return parsed
+            rows = _rows_from_container(parsed)
+            if rows:
+                return rows
         except Exception:
             pass
 
-    # 3) Any JSON array within output
-    json_match = re.search(r"\[.*\]", output, re.DOTALL)
+    # 3) Any JSON array/object within output
+    json_match = re.search(r"(\[.*\]|\{.*\})", output, re.DOTALL)
     if json_match:
         try:
             parsed = json.loads(json_match.group(0))
-            if isinstance(parsed, list):
-                return parsed
+            rows = _rows_from_container(parsed)
+            if rows:
+                return rows
         except Exception:
             pass
 
@@ -159,6 +233,11 @@ def _extract_data_rows(output):
     table_rows = _parse_markdown_table(output)
     if table_rows:
         return table_rows
+
+    # 5) Quasi-JSON fallback
+    loose_rows = _extract_loose_rows(output)
+    if loose_rows:
+        return loose_rows
 
     return None
 
@@ -324,7 +403,7 @@ def save_llm_output(raw_output, processed_data, image_name="document"):
     """
     Save both raw LLM output and processed data to JSON files.
     """
-    json_output_dir = r"D:\Works\numbersscanner\numbersys\scanner\json_outputs"
+    json_output_dir = os.path.join(os.path.dirname(__file__), "json_outputs")
     
     # Create folder if it doesn't exist
     if not os.path.exists(json_output_dir):
@@ -336,13 +415,13 @@ def save_llm_output(raw_output, processed_data, image_name="document"):
     # Save raw LLM response
     raw_filename = f"llm_raw_{image_name}_{timestamp}.json"
     raw_filepath = os.path.join(json_output_dir, raw_filename)
-    with open(raw_filepath, "w") as f:
+    with open(raw_filepath, "w", encoding="utf-8") as f:
         json.dump({"raw_output": raw_output}, f, indent=2)
     
     # Save processed data
     processed_filename = f"llm_processed_{image_name}_{timestamp}.json"
     processed_filepath = os.path.join(json_output_dir, processed_filename)
-    with open(processed_filepath, "w") as f:
+    with open(processed_filepath, "w", encoding="utf-8") as f:
         json.dump(processed_data, f, indent=2)
     
     return raw_filepath, processed_filepath
@@ -350,7 +429,8 @@ def save_llm_output(raw_output, processed_data, image_name="document"):
 def extract_data_with_qwen(image_path, api_key):
     """
     Main extraction function that takes image path and API key.
-    Returns processed data or None if extraction fails.
+    Returns (processed_data, error_message).
+    processed_data is None when extraction fails.
     """
     BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 
@@ -392,9 +472,9 @@ Handle Struck-through/Crossed-out Data:
 
 Rule for Overwritten/Struck-through Data:
 
-Visual Conflict Check: For every cell, check if there is any horizontal, diagonal, or "scribble" ink overlapping the digits.
+Visual Conflict Check: For every cell, check if there is any horizontal, diagonal, or "scribble" ink overlapping the digits even a little bit.
 
-The "Ink Overrides Text" Rule: If you see lines drawn through or over a number (even if the number is still legible), you must prioritize the strike-through marks as a "Deletion Command."
+The "Ink Overrides Text" Rule: If you see lines drawn through or over a number (even if the number is still legible even a little bit never consider it), you must prioritize the strike-through marks as a "Deletion Command."
 
 Output: In these cases, ignore the underlying digits and record the value as 0. Treat "ink on top of text" as a manual override to zero.
 
@@ -448,7 +528,7 @@ Output ONLY the Markdown table. Do not provide an introduction or summary.
             data = _extract_data_rows(output)
             if not data:
                 save_llm_output(output, {"error": "Could not parse rows from LLM output"}, image_name="parse_failed")
-                return None
+                return None, "Model response format could not be parsed into rows."
 
             # ✅ Step 5: Apply logic directly
             # Removed the skip of first row because the prompt "Start from S-1" 
@@ -459,16 +539,23 @@ Output ONLY the Markdown table. Do not provide an introduction or summary.
             # ✅ Step 6: Save LLM output and processed data to JSON files
             save_llm_output(output, processed_data, image_name="extraction")
             
-            return processed_data
+            return processed_data, None
 
         else:
+            error_text = response.text
+            try:
+                body = response.json()
+                error_text = body.get("error", {}).get("message") or response.text
+            except Exception:
+                pass
+
             save_llm_output(
                 response.text,
                 {"error": f"HTTP {response.status_code}"},
                 image_name="api_failed",
             )
-            return None
+            return None, f"API request failed (HTTP {response.status_code}): {error_text}"
 
     except Exception as e:
         save_llm_output(str(e), {"error": "Unhandled extractor exception"}, image_name="exception")
-        return None
+        return None, f"Extractor exception: {e}"
